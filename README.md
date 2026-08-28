@@ -23,6 +23,9 @@ Note: This is currently tested on MacOS ONLY
   README for usage.
 - `scripts/copilot/` — Copilot base image build script. In progress.
 - `scripts/opencode/` — opencode setup. In progress, no sandboxing yet.
+- `scripts/remove_running_containers.sh` — delete running incus
+  containers after confirmation, optionally filtered to one harness
+  (`pixi run remove-all-containers [claude]`).
 - `pixi.toml` — local pixi workspace for this repo's own tooling.
 
 ## Getting started

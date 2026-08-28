@@ -75,6 +75,30 @@ container's environment via `incus config set`, so credential changes
 take effect without recreating the container. It then execs into the
 container and starts `claude` in `/workspace`.
 
+## Tear down containers
+
+```bash
+pixi run remove-all-containers claude
+```
+
+Lists the **running** containers for one harness — matched on the
+`claude--` name prefix the launcher uses — and deletes them after you
+confirm. The argument is optional; omitting it targets every running
+incus container, including any not created by this repo:
+
+```bash
+pixi run remove-all-containers          # everything running
+pixi run remove-all-containers claude   # just Claude Code containers
+```
+
+The same filter will cover `copilot`, `opencode`, `codex` and friends
+once their launchers land, since it keys off the shared
+`<harness>--<directory>-<hash>` naming rather than a hardcoded list.
+
+Pass `--yes` to skip the prompt; without a terminal (CI, a pipe) the
+script refuses rather than deleting unattended. Stopped containers are
+left alone; delete those individually with `incus delete <name>`.
+
 ## Notes
 
 - The workspace disk device is mounted **without** `shift=true`. Some

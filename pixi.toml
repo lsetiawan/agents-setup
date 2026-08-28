@@ -6,6 +6,7 @@ version = "0.1.0"
 
 [tasks]
 claude = "scripts/start_claude_vm.sh"
+remove-all-containers = "scripts/remove_running_containers.sh"
 
 [activation]
 scripts = ["scripts/check_colima.sh"]
