@@ -5,6 +5,15 @@ inside isolated [incus](https://linuxcontainers.org/incus/) containers, each
 with a project directory mounted in and credentials injected at startup
 instead of baked into the image.
 
+## Requirements
+
+- [pixi](https://pixi.sh) — manages this repo's own tooling and tasks.
+- [Homebrew](https://brew.sh) — used to install Colima.
+- [Colima](https://colima.run/#quick-start) — provides the `incus` VM
+  backend the scripts under `scripts/` launch containers in. Required
+  on `PATH`; `pixi run`/`pixi shell` will fail fast with instructions
+  if it's missing (see `scripts/check_colima.sh`).
+
 ## Layout
 
 - [`scripts/claude-code/`](scripts/claude-code/README.md) — build a Claude

@@ -6,4 +6,7 @@ version = "0.1.0"
 
 [tasks]
 
+[activation]
+scripts = ["scripts/check_colima.sh"]
+
 [dependencies]
