@@ -37,15 +37,25 @@ overwrites the existing `claude-base-image` alias in place.
 From the repo root:
 
 ```bash
-./start_claude_vm.sh <container_name> [project_directory]
+./start_claude_vm.sh [project_directory]
 ```
 
-- `container_name` — name for the incus container. If it already
-  exists, the script reuses it instead of creating a new one.
 - `project_directory` — host directory to mount into the container at
   `/workspace`. Defaults to the current working directory.
 
-On first run for a given `container_name`, this creates a container
+The container name is derived from the directory: `/path/to/work-dir`
+becomes the container `claude--work-dir-a1b2`, where the suffix is the
+first four hex characters of the path's SHA-256. The directory name is
+lowercased, anything that isn't a letter, digit or hyphen becomes `-`,
+and the whole name stays inside incus' 63-character limit.
+
+Passing the same directory again therefore reuses the same container,
+while two directories sharing a basename (`/a/work-dir` and
+`/b/work-dir`) get separate containers. As a safety net, if a container
+with the derived name exists but is mounted elsewhere, the script stops
+with an error rather than attaching you to the wrong workspace.
+
+On first run for a given directory, this creates a container
 from `claude-base-image` (4 CPUs / 16GB RAM by default) and mounts
 `project_directory` as a disk device at `/workspace`. Every run
 (including reuses) re-reads `.env` and pushes each key into the
