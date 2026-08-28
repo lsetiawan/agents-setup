@@ -5,7 +5,7 @@ platforms = ["osx-arm64"]
 version = "0.1.0"
 
 [tasks]
-claude = "./start_claude_vm.sh"
+claude = "scripts/start_claude_vm.sh"
 
 [activation]
 scripts = ["scripts/check_colima.sh"]

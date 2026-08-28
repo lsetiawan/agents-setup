@@ -8,8 +8,9 @@ mounted in and API credentials injected at startup.
 
 - [incus](https://linuxcontainers.org/incus/) installed and initialized
   (`incus admin init`)
-- A `.env` file at the repo root with your credentials (copy
-  `.env-example` and fill it in):
+- A `.env` file with your credentials (copy `.env-example` and fill it
+  in). The launcher reads it from the directory you invoke it in, and
+  falls back to the repo root if that directory has none:
 
   ```
   ANTHROPIC_BASE_URL=...
@@ -34,14 +35,25 @@ overwrites the existing `claude-base-image` alias in place.
 
 ## Launch a project container
 
-From the repo root:
+From your project directory:
 
 ```bash
-./start_claude_vm.sh [project_directory]
+pixi run claude [project_directory]
+```
+
+or directly:
+
+```bash
+./scripts/start_claude_vm.sh [project_directory]
 ```
 
 - `project_directory` — host directory to mount into the container at
-  `/workspace`. Defaults to the current working directory.
+  `/workspace`. Defaults to the directory you ran the command in.
+
+`pixi run` executes tasks from the workspace root, so the launcher uses
+pixi's `INIT_CWD` to recover the directory you actually invoked it in —
+that's the directory both the mounted workspace and the `.env` lookup
+default to.
 
 The container name is derived from the directory: `/path/to/work-dir`
 becomes the container `claude--work-dir-a1b2`, where the suffix is the

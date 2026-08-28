@@ -28,13 +28,17 @@ Note: This is currently tested on MacOS ONLY
 ## Getting started
 
 Each agent's setup lives under `scripts/<agent>/` with its own build
-script and, where applicable, a launcher at the repo root
-(e.g. `start_claude_vm.sh`). Start with the Claude Code README linked
-above; the same `incus launch` → provision → `publish` pattern is shared
-across the other agents as they're finished.
+script and, where applicable, a launcher under `scripts/`
+(e.g. `start_claude_vm.sh`, wired up as `pixi run claude`). Start with
+the Claude Code README linked above; the same `incus launch` →
+provision → `publish` pattern is shared across the other agents as
+they're finished.
 
-Credentials (API keys, base URLs, etc.) go in a repo-root `.env` file —
-copy `.env-example` to `.env` and fill it in. `.env` is gitignored and
+Credentials (API keys, base URLs, etc.) go in a `.env` file — copy
+`.env-example` to `.env` and fill it in. The launcher reads `.env` from
+the directory you run it in, falling back to a repo-root `.env` when
+that directory has none, so you can keep one shared file or give a
+project its own. `.env` is gitignored and
 is only ever pushed into a container's runtime config, never into a
 published image.
 

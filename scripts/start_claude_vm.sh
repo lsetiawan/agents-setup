@@ -8,13 +8,25 @@ WORKSPACE="/workspace"
 MAX_CPU="4"
 MAX_RAM="16GB"
 NAME_PREFIX="claude-"
-ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
+
+# `pixi run claude` runs the task from the workspace root rather than from where
+# it was invoked, but pixi exports INIT_CWD with the caller's directory.
+INVOCATION_DIR="${INIT_CWD:-$(pwd)}"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Credentials come from the directory the script was invoked in, falling back to
+# the repo root so a single shared .env keeps working.
+ENV_FILE="$INVOCATION_DIR/.env"
+if [ ! -f "$ENV_FILE" ] && [ -f "$REPO_ROOT/.env" ]; then
+  ENV_FILE="$REPO_ROOT/.env"
+fi
 
 case "$1" in
   -h|--help)
     echo "Usage: $0 <project_directory>(Optional)"
     echo ""
-    echo "Project directory defaults to the current working directory if not specified."
+    echo "Project directory, and the .env read for credentials, default to the"
+    echo "directory the script was invoked from."
     echo "The container name is derived from the directory, e.g. /path/to/work-dir"
     echo "maps to the container ${NAME_PREFIX}-work-dir-<hash>, so the same directory"
     echo "always reuses the same container while directories that share a basename"
@@ -25,7 +37,7 @@ case "$1" in
     ;;
 esac
 
-TARGET_DIR="${1:-$(pwd)}"
+TARGET_DIR="${1:-$INVOCATION_DIR}"
 
 # Convert folder to absolute path and derive the container name from it, so the
 # same project directory always maps back to the same container.
