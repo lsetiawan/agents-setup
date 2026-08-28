@@ -14,6 +14,8 @@ instead of baked into the image.
   on `PATH`; `pixi run`/`pixi shell` will fail fast with instructions
   if it's missing (see `scripts/check_colima.sh`).
 
+Note: This is currently tested on MacOS ONLY
+
 ## Layout
 
 - [`scripts/claude-code/`](scripts/claude-code/README.md) — build a Claude
