@@ -55,6 +55,20 @@ pixi's `INIT_CWD` to recover the directory you actually invoked it in —
 that's the directory both the mounted workspace and the `.env` lookup
 default to.
 
+That also means you can run the task from any directory on the machine,
+not just from inside this repo, by pointing pixi at the manifest:
+
+```bash
+pixi run --manifest-path /path/to/agents-setup/pixi.toml claude
+```
+
+`INIT_CWD` still points at wherever you invoked it, so the container
+mounts that project and picks up its `.env`. Worth an alias:
+
+```bash
+alias cc='pixi run --manifest-path /path/to/agents-setup/pixi.toml claude'
+```
+
 The container name is derived from the directory: `/path/to/work-dir`
 becomes the container `claude--work-dir-a1b2`, where the suffix is the
 first four hex characters of the path's SHA-256. The directory name is

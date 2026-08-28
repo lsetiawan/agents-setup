@@ -37,13 +37,21 @@ the Claude Code README linked above; the same `incus launch` →
 provision → `publish` pattern is shared across the other agents as
 they're finished.
 
+The tasks don't have to be run from inside this repo — point pixi at
+the manifest and launch an agent from whatever project you're in:
+
+```bash
+pixi run --manifest-path /path/to/agents-setup/pixi.toml claude
+```
+
+The launcher mounts the directory you ran that from, not the repo.
+
 Credentials (API keys, base URLs, etc.) go in a `.env` file — copy
 `.env-example` to `.env` and fill it in. The launcher reads `.env` from
 the directory you run it in, falling back to a repo-root `.env` when
 that directory has none, so you can keep one shared file or give a
-project its own. `.env` is gitignored and
-is only ever pushed into a container's runtime config, never into a
-published image.
+project its own. `.env` is gitignored and is only ever pushed into a
+container's runtime config, never into a published image.
 
 ## License
 
