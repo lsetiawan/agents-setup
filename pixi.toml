@@ -6,6 +6,7 @@ version = "0.1.0"
 
 [tasks]
 claude = "scripts/start_claude_vm.sh"
+setup-claude = "scripts/setup_claude_link.sh"
 remove-all-containers = "scripts/remove_running_containers.sh"
 
 [activation]

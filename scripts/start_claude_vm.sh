@@ -12,7 +12,9 @@ NAME_PREFIX="claude-"
 # `pixi run claude` runs the task from the workspace root rather than from where
 # it was invoked, but pixi exports INIT_CWD with the caller's directory.
 INVOCATION_DIR="${INIT_CWD:-$(pwd)}"
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Resolve through symlinks: `pixi run setup-claude` links this script into the
+# environment's bin/, and $0 is then that link rather than the real file.
+REPO_ROOT="$(cd "$(dirname "$(realpath "$0")")/.." && pwd)"
 
 # Credentials come from the directory the script was invoked in, falling back to
 # the repo root so a single shared .env keeps working.

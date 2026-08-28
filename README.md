@@ -23,6 +23,8 @@ Note: This is currently tested on MacOS ONLY
   README for usage.
 - `scripts/copilot/` — Copilot base image build script. In progress.
 - `scripts/opencode/` — opencode setup. In progress, no sandboxing yet.
+- `scripts/setup_claude_link.sh` — symlink `claude` inside the pixi
+  environment to the launcher (`pixi run setup-claude`).
 - `scripts/remove_running_containers.sh` — delete running incus
   containers after confirmation, optionally filtered to one harness
   (`pixi run remove-all-containers [claude]`).
@@ -45,6 +47,11 @@ pixi run --manifest-path /path/to/agents-setup/pixi.toml claude
 ```
 
 The launcher mounts the directory you ran that from, not the repo.
+
+If you'd rather just type `claude`, run `pixi run setup-claude` once. It
+symlinks `claude` into the environment's `bin/`, so inside `pixi shell`
+the launcher shadows any host-installed Claude Code and mounts your
+current directory. Re-run it if pixi rebuilds the environment.
 
 Credentials (API keys, base URLs, etc.) go in a `.env` file — copy
 `.env-example` to `.env` and fill it in. The launcher reads `.env` from
