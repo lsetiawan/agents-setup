@@ -1,0 +1,36 @@
+{
+  "autoUpdate": true,
+  "autoCompactThreshold": 60,
+  "notifications": false,
+  "telemetry": "off",
+  "effortLevel": "medium",
+  "theme": "light",
+  "sandbox": {
+    "failIfUnavailable": true
+  },
+  "bash": {
+    "allowedCommands": [
+      "git status",
+      "git diff",
+      "npm test",
+      "ls -la",
+      "pwd",
+      "cat"
+    ],
+    "deniedCommands": [
+      "sudo",
+      "chmod 777",
+      "rm -rf /",
+      "git push --force"
+    ]
+  },
+  "env": {
+      "ANTHROPIC_DEFAULT_HAIKU_MODEL": "ssec-claude-haiku-4-5",
+      "ANTHROPIC_DEFAULT_SONNET_MODEL": "ssec-claude-sonnet-5",
+      "ANTHROPIC_DEFAULT_OPUS_MODEL": "ssec-claude-opus-5",
+      "ANTHROPIC_MODEL": "sonnet"
+  },
+  "availableModels": ["haiku", "sonnet", "opus"],
+  "enforceAvailableModels": true
+
+}

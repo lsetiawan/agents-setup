@@ -1,0 +1,13 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# MacOS
+.DS_Store
+
+# Secrets
+.env*
+!.env-example
+
+# Git
+commit-message*

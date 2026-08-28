@@ -1,0 +1,25 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "omlx": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "oMLX (local)",
+      "options": {
+        "baseURL": "http://localhost:8999/v1",
+        "apiKey": "{env:OMLX_API_KEY}"
+      },
+      "models": {
+        "Qwen3.8-27B-oQ4e-mtp": {
+          "name": "Qwen 3.8 - 27B (4Bit)",
+          "tool_call": true,
+          "reasoning": false,
+          "limit": {
+            "context": 32768,
+            "output": 8192
+          }
+        }
+      }
+    }
+  },
+  "model": "omlx/Qwen3.8-27B-oQ4e-mtp"
+}
