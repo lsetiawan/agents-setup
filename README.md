@@ -28,6 +28,10 @@ Note: This is currently tested on MacOS ONLY
 - `scripts/remove_running_containers.sh` — delete running incus
   containers after confirmation, optionally filtered to one harness
   (`pixi run remove-all-containers [claude]`).
+- [`scripts/litellm/`](scripts/litellm/README.md) — a local LiteLLM proxy
+  in front of the upstream gateway and your oMLX models, with spend logs
+  in a local Postgres (`pixi run litellm` / `pixi run stop-litellm`).
+  Runs on the host under pixi rather than in a container.
 - `pixi.toml` — local pixi workspace for this repo's own tooling.
 
 ## Getting started
@@ -59,6 +63,15 @@ the directory you run it in, falling back to a repo-root `.env` when
 that directory has none, so you can keep one shared file or give a
 project its own. `.env` is gitignored and is only ever pushed into a
 container's runtime config, never into a published image.
+
+## LiteLLM proxy
+
+Separately from the agent containers, `pixi run litellm` starts a local
+LiteLLM proxy on `http://127.0.0.1:4000`. It forwards Anthropic traffic
+to the upstream gateway named in `.env`, serves your oMLX models
+alongside it, and records spend in a Postgres cluster it creates under
+`.litellm/`. See its [README](scripts/litellm/README.md) for
+configuration and for how to route the agent containers through it.
 
 ## License
 

@@ -8,8 +8,16 @@ version = "0.1.0"
 claude = "scripts/start_claude_vm.sh"
 setup-claude = "scripts/setup_claude_link.sh"
 remove-all-containers = "scripts/remove_running_containers.sh"
+litellm = "scripts/start_litellm.sh"
+stop-litellm = "scripts/stop_litellm.sh"
 
 [activation]
 scripts = ["scripts/check_colima.sh"]
 
 [dependencies]
+python = "3.12.*"
+postgresql = "16.*"
+
+[pypi-dependencies]
+# extra-proxy carries prisma, which the proxy needs to talk to Postgres.
+litellm = { version = "==1.98.0", extras = ["proxy", "extra-proxy"] }

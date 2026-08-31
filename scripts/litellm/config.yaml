@@ -1,0 +1,52 @@
+# LiteLLM proxy configuration for local development.
+#
+# Anthropic models are not called directly — they are forwarded to an upstream
+# LiteLLM proxy (the llmaven gateway), which is what actually holds the provider
+# credentials. This proxy is a local shim in front of it: it rewrites the
+# friendly model names agents send (claude-opus-5) onto the upstream's own names
+# (cloudbank-claude-opus-5), and records spend locally in Postgres.
+
+model_list:
+  # --- Upstream LiteLLM gateway -------------------------------------------
+  # api_base/api_key come from LITELLM_UPSTREAM_*, which start_litellm.sh
+  # defaults from ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN when unset.
+  - model_name: claude-opus-5
+    litellm_params:
+      model: anthropic/cloudbank-claude-opus-5
+      api_base: os.environ/LITELLM_UPSTREAM_BASE_URL
+      api_key: os.environ/LITELLM_UPSTREAM_API_KEY
+
+  - model_name: claude-sonnet-5
+    litellm_params:
+      model: anthropic/cloudbank-claude-sonnet-5
+      api_base: os.environ/LITELLM_UPSTREAM_BASE_URL
+      api_key: os.environ/LITELLM_UPSTREAM_API_KEY
+
+  - model_name: claude-haiku-4-5
+    litellm_params:
+      model: anthropic/cloudbank-claude-haiku-4-5
+      api_base: os.environ/LITELLM_UPSTREAM_BASE_URL
+      api_key: os.environ/LITELLM_UPSTREAM_API_KEY
+
+  # --- Local models via oMLX ----------------------------------------------
+  # oMLX speaks the OpenAI API, so these use the openai/ provider pointed at it.
+  # OMLX_API_BASE is http://127.0.0.1:8999/v1 with the proxy on the host; from
+  # inside an incus container it is http://192.168.64.1:8999/v1 and oMLX has to
+  # be listening on 0.0.0.0 rather than loopback.
+  - model_name: omlx-qwen3-27b-q4
+    litellm_params:
+      model: openai/Qwen3.8-27B-oQ4e-mtp
+      api_base: os.environ/OMLX_API_BASE
+      api_key: os.environ/OMLX_API_KEY
+
+  - model_name: omlx-qwen3-27b-q8
+    litellm_params:
+      model: openai/Qwen3.8-27B-oQ8e-fp16-mtp
+      api_base: os.environ/OMLX_API_BASE
+      api_key: os.environ/OMLX_API_KEY
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  store_prompts_in_spend_logs: true
+  store_model_in_db: true

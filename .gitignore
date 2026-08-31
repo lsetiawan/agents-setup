@@ -11,3 +11,6 @@
 
 # Git
 commit-message*
+
+# LiteLLM local state
+.litellm/
