@@ -29,7 +29,8 @@ Note: This is currently tested on MacOS ONLY
   environment to the launcher (`pixi run setup-claude`).
 - `scripts/remove_running_containers.sh` — delete running incus
   containers after confirmation, optionally filtered to one harness
-  (`pixi run remove-all-containers [claude]`).
+  (`pixi run remove-all-containers [claude]`). Persisted `~/.claude`
+  state is left on the host.
 - [`scripts/litellm/`](scripts/litellm/README.md) — a local LiteLLM proxy
   in front of the upstream gateway and your oMLX models, with spend logs
   in a local Postgres (`pixi run litellm` / `pixi run stop-litellm`).
@@ -71,6 +72,17 @@ Its `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` describe the
 passed to containers — those authenticate to the proxy with
 `LITELLM_MASTER_KEY` instead, so start the proxy before launching an
 agent.
+
+## Persistent agent state
+
+Containers are disposable, but each project's `~/.claude` is not: the
+launcher mounts `~/.agents-setup/claude/<project>-<hash>` into the
+container at `/root/.claude` and points `CLAUDE_CONFIG_DIR` at it, so
+memory, sessions, project state and `.claude.json` all outlive the
+container. Delete a container, relaunch the same directory, and the
+history is still there. Set `AGENTS_STATE_DIR` to keep that state
+somewhere other than `~/.agents-setup`. See the Claude Code
+[README](scripts/claude-code/README.md) for how it's seeded and removed.
 
 ## LiteLLM proxy
 

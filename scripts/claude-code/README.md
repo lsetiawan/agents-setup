@@ -95,6 +95,63 @@ container's environment via `incus config set`, so changes take effect
 without recreating the container. It then execs into the container and
 starts `claude` in `/workspace`.
 
+## Persistent state
+
+Containers are disposable; what Claude Code builds up inside them is
+not. Each project gets a directory on the host —
+`${AGENTS_STATE_DIR:-$HOME/.agents-setup}/claude/<project>-<hash>` —
+mounted into the container at `/root/.claude` as the `claude-state` disk
+device. Delete the container and relaunch, and memory, `projects/`,
+`sessions/`, `history.jsonl` and `plugins/` are all still there.
+
+The key is `<project>-<hash>`: the container name minus its `claude--`
+prefix. Mapping a directory to its state therefore uses the same
+derivation that maps a directory to its container, so the two never
+drift apart.
+
+The launcher also sets `CLAUDE_CONFIG_DIR=/root/.claude`. Left alone,
+Claude Code writes `.claude.json` — MCP servers, per-project history,
+onboarding state — to `/root/.claude.json`, *beside* the mount rather
+than inside it, where it would go down with the container. Pointing
+`CLAUDE_CONFIG_DIR` at the mount pulls that file in. It is a directory
+mount for the same reason: `.claude.json` is rewritten by renaming a
+temporary file over it, which a single-file bind mount would break.
+
+### Seeding
+
+The first launch for a directory creates the state directory and seeds
+it:
+
+- If the container already exists — it predates this feature, or you
+  cleared the state directory — its current `/root/.claude` and
+  `/root/.claude.json` are copied out to the host first, so mounting
+  over them doesn't hide history that is already there.
+- Otherwise `claude-settings.json` is copied in as `settings.json`. The
+  image bakes the same file into `/root/.claude`, but the mount hides
+  it, so the host side needs its own copy.
+
+Later launches leave the directory's contents alone. An existing but
+empty directory still counts as fresh, since that's what an interrupted
+first run leaves behind.
+
+Change `AGENTS_STATE_DIR` and the next launch seeds the new location
+from the container's current `~/.claude` — which is still the old
+directory at that point, since seeding happens before the device is
+swapped — then re-attaches `claude-state` at the new path, printing what
+it did. The old directory is copied, not moved; delete it yourself once
+you're satisfied the move took.
+
+### Removing state
+
+`pixi run remove-all-containers` deletes containers, not state; keeping
+it on the host is the whole point. To throw a project's history away:
+
+```bash
+rm -rf ~/.agents-setup/claude/<project>-<hash>
+```
+
+State directories accumulate — nothing prunes them for you.
+
 ## Model routing
 
 The container never sees the upstream gateway. The launcher sets its
@@ -153,7 +210,8 @@ left alone; delete those individually with `incus delete <name>`.
 
 ## Notes
 
-- The workspace disk device is mounted **without** `shift=true`. Some
+- The workspace and `claude-state` disk devices are mounted **without**
+  `shift=true`. Some
   incus-on-macOS setups (virtiofs/FUSE-backed host sharing on a Linux
   6.8 guest kernel) don't support idmapped mounts, which makes
   `shift=true` fail with `Required idmapping abilities not available`.

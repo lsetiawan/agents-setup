@@ -9,6 +9,13 @@ MAX_CPU="4"
 MAX_RAM="16GB"
 NAME_PREFIX="claude-"
 
+# ~/.claude inside the container is a bind mount of a host directory, so state
+# survives the container being deleted. CLAUDE_CONFIG_DIR points Claude Code at
+# that path, which also pulls .claude.json inside the mount rather than leaving
+# it in /root, where it would go down with the container.
+CLAUDE_CONFIG_PATH="/root/.claude"
+STATE_DEVICE="claude-state"
+
 # `pixi run claude` runs the task from the workspace root rather than from where
 # it was invoked, but pixi exports INIT_CWD with the caller's directory.
 INVOCATION_DIR="${INIT_CWD:-$(pwd)}"
@@ -22,6 +29,8 @@ ENV_FILE="$INVOCATION_DIR/.env"
 if [ ! -f "$ENV_FILE" ] && [ -f "$REPO_ROOT/.env" ]; then
   ENV_FILE="$REPO_ROOT/.env"
 fi
+
+SETTINGS_TEMPLATE="$REPO_ROOT/scripts/claude-code/claude-settings.json"
 
 case "$1" in
   -h|--help)
@@ -40,6 +49,8 @@ case "$1" in
     echo "Environment overrides:"
     echo "  LITELLM_PORT    proxy port (default 4000)"
     echo "  AGENTS_HOST_IP  host address the container dials (default: discovered)"
+    echo "  AGENTS_STATE_DIR  where per-project ~/.claude state is kept on the"
+    echo "                  host (default: \$HOME/.agents-setup)"
     echo "=== Available Local Images ==="
     incus image list
     exit 0
@@ -142,8 +153,26 @@ fi
 BASE_NAME=$(echo "${NAME_PREFIX}-${DIR_NAME}" | cut -c1-58 | sed -e 's/-\{1,\}$//')
 CONTAINER_NAME="${BASE_NAME}-${DIR_HASH}"
 
+# --- Persistent Claude state -----------------------------------------------
+
+# Everything Claude Code keeps between runs - memory, projects, sessions,
+# history, .claude.json - lives in one directory on the host, keyed the same way
+# the container is. Deleting the container therefore does not take it along, and
+# the next launch for this project picks up where the last one left off.
+: "${AGENTS_STATE_DIR:=$HOME/.agents-setup}"
+STATE_DIR="$AGENTS_STATE_DIR/claude/${CONTAINER_NAME#${NAME_PREFIX}-}"
+
+# An empty directory counts as fresh too: that is what an interrupted first run
+# leaves behind.
+STATE_FRESH=0
+if [ -z "$(ls -A "$STATE_DIR" 2>/dev/null)" ]; then
+  STATE_FRESH=1
+fi
+
 # Check if the container already exists
+CONTAINER_EXISTED=0
 if incus info "$CONTAINER_NAME" >/dev/null 2>&1; then
+  CONTAINER_EXISTED=1
   # Reuse it only if it is already bound to this exact directory.
   EXISTING_DIR=$(incus config device get "$CONTAINER_NAME" workspace source 2>/dev/null || true)
   if [ "$EXISTING_DIR" != "$ABS_DIR" ]; then
@@ -166,6 +195,49 @@ else
 
   incus config device add "$CONTAINER_NAME" \
         workspace disk source="$ABS_DIR" path=$WORKSPACE
+fi
+
+# --- Seed and attach the state directory -----------------------------------
+
+mkdir -p "$STATE_DIR"
+
+if [ "$STATE_FRESH" -eq 1 ]; then
+  if [ "$CONTAINER_EXISTED" -eq 1 ]; then
+    # The container predates this directory and has real history in its own
+    # /root/.claude, which the mount below would hide. Copy it out first.
+    echo "Adopting $CONTAINER_NAME's existing ~/.claude into $STATE_DIR"
+    PULL_TMP=$(mktemp -d)
+    if incus file pull -r "$CONTAINER_NAME/root/.claude" "$PULL_TMP" 2>/dev/null; then
+      cp -R "$PULL_TMP/.claude/." "$STATE_DIR/"
+    fi
+    # .claude.json sits beside ~/.claude, not inside it, until CLAUDE_CONFIG_DIR
+    # moves it in - so it has to be pulled separately.
+    incus file pull "$CONTAINER_NAME/root/.claude.json" "$STATE_DIR/.claude.json" 2>/dev/null || true
+    rm -rf "$PULL_TMP"
+  fi
+
+  # New containers, and older ones that never wrote settings of their own, start
+  # from the same defaults the image bakes in. The mount hides the image's copy,
+  # so it has to be seeded here.
+  if [ ! -f "$STATE_DIR/settings.json" ] && [ -f "$SETTINGS_TEMPLATE" ]; then
+    cp "$SETTINGS_TEMPLATE" "$STATE_DIR/settings.json"
+  fi
+
+  echo "Claude state for this project lives in $STATE_DIR"
+fi
+
+# Attach it, re-pointing an existing device if AGENTS_STATE_DIR has moved since
+# the container was created. Unlike the workspace mount that is never a mistake
+# worth erroring over - the override is always deliberate.
+EXISTING_STATE=$(incus config device get "$CONTAINER_NAME" "$STATE_DEVICE" source 2>/dev/null || true)
+if [ -n "$EXISTING_STATE" ] && [ "$EXISTING_STATE" != "$STATE_DIR" ]; then
+  echo "Re-pointing Claude state from '$EXISTING_STATE' to '$STATE_DIR'"
+  incus config device remove "$CONTAINER_NAME" "$STATE_DEVICE"
+  EXISTING_STATE=""
+fi
+if [ -z "$EXISTING_STATE" ]; then
+  incus config device add "$CONTAINER_NAME" "$STATE_DEVICE" disk \
+        source="$STATE_DIR" path="$CLAUDE_CONFIG_PATH"
 fi
 
 # --- Container environment -------------------------------------------------
@@ -195,6 +267,9 @@ incus config set "$CONTAINER_NAME" "environment.ANTHROPIC_DEFAULT_OPUS_MODEL=$AN
 incus config set "$CONTAINER_NAME" "environment.ANTHROPIC_DEFAULT_SONNET_MODEL=$ANTHROPIC_DEFAULT_SONNET_MODEL"
 incus config set "$CONTAINER_NAME" "environment.ANTHROPIC_DEFAULT_HAIKU_MODEL=$ANTHROPIC_DEFAULT_HAIKU_MODEL"
 incus config set "$CONTAINER_NAME" "environment.ANTHROPIC_MODEL=$ANTHROPIC_MODEL"
+
+# Without this .claude.json is written to /root and lost with the container.
+incus config set "$CONTAINER_NAME" "environment.CLAUDE_CONFIG_DIR=$CLAUDE_CONFIG_PATH"
 
 # The proxy answers on the host; whether the container can route to it is a
 # separate question (NAT, a host firewall), so check from the inside too. A
