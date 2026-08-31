@@ -24,13 +24,6 @@
       "git push --force"
     ]
   },
-  "env": {
-      "ANTHROPIC_DEFAULT_HAIKU_MODEL": "ssec-claude-haiku-4-5",
-      "ANTHROPIC_DEFAULT_SONNET_MODEL": "ssec-claude-sonnet-5",
-      "ANTHROPIC_DEFAULT_OPUS_MODEL": "ssec-claude-opus-5",
-      "ANTHROPIC_MODEL": "sonnet"
-  },
   "availableModels": ["haiku", "sonnet", "opus"],
   "enforceAvailableModels": true
-
 }

@@ -21,8 +21,10 @@ pixi run litellm        # starts Postgres, then the proxy in the foreground
 pixi run stop-litellm   # stops the proxy and Postgres
 ```
 
-The proxy listens on `http://127.0.0.1:4000`, with the admin UI at `/ui`. Set
-`LITELLM_PORT` or `POSTGRES_PORT` to move either off its default.
+The proxy listens on port 4000, with the admin UI at
+<http://127.0.0.1:4000/ui>. It binds `0.0.0.0`, which is what lets the agent
+containers reach it. Set `LITELLM_PORT` or `POSTGRES_PORT` to move either off
+its default.
 
 The first run is slow: it initialises a Postgres cluster, generates the Prisma
 client (the published LiteLLM container bakes this in at image build time; a PyPI
@@ -66,29 +68,36 @@ truncated with an empty `content` — `stop_reason: max_tokens` rather than an
 error, so it looks like the model returned nothing. Give them room. The Qwen
 models return their reasoning separately in `reasoning_content`.
 
-### Pointing agents at the proxy
+### The agent containers
 
-To route the agent containers through it, set in the project's `.env`:
+The agent containers always go through this proxy — `start_claude_vm.sh` sets
+their `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` itself rather than passing
+`.env`'s through, so there is nothing to configure per project. Start the proxy
+before launching one; the launcher refuses to start without it.
 
-```bash
-ANTHROPIC_BASE_URL=http://127.0.0.1:4000
-ANTHROPIC_AUTH_TOKEN=<LITELLM_MASTER_KEY>
-```
+Two consequences worth knowing:
 
-That is the same pair the proxy falls back to for its own upstream, so once you
-do this you **must** also set `LITELLM_UPSTREAM_BASE_URL` and
-`LITELLM_UPSTREAM_API_KEY` explicitly — otherwise the proxy would forward to
-itself. `start_litellm.sh` refuses to start rather than loop if you forget.
+- The upstream gateway's credentials never enter a container. It authenticates
+  to this proxy with `LITELLM_MASTER_KEY`, and the proxy holds the real key.
+- Containers cannot reach the host on loopback. They sit behind `incusbr0`
+  inside the Colima VM and NAT out of it, so the launcher works out the host's
+  address on the vmnet bridge (`192.168.64.1` on a default Colima setup) and
+  hands them that. Set `AGENTS_HOST_IP` if it picks the wrong interface.
 
-Containers reach the host at `192.168.64.1`, not `127.0.0.1`, so a containerised
-agent wants `http://192.168.64.1:4000` and a proxy started with
-`--host 0.0.0.0`.
+That address only works because LiteLLM's CLI binds `0.0.0.0` by default, which
+also means the proxy is reachable from your LAN — worth knowing if you are on an
+untrusted network.
+
+Model names come from this file's `model_list`, pushed in as
+`ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL`. Rename a model here and set the
+matching variable in `.env`, or the container will ask for a name the proxy no
+longer serves.
 
 ### oMLX from a container
 
-oMLX listening on `127.0.0.1:8999` is unreachable from any container. Bind it to
-`0.0.0.0` and use `http://192.168.64.1:8999/v1` if the proxy ever moves off the
-host.
+Nothing to do: containers never talk to oMLX directly. The proxy reaches it on
+the host, so `OMLX_API_BASE` stays on `127.0.0.1` and the oMLX server can stay
+bound to loopback.
 
 ## Checking it works
 

@@ -3,7 +3,9 @@
 Scripts for running coding agents (Claude Code, GitHub Copilot, opencode)
 inside isolated [incus](https://linuxcontainers.org/incus/) containers, each
 with a project directory mounted in and credentials injected at startup
-instead of baked into the image.
+instead of baked into the image. Model traffic goes through a local
+LiteLLM proxy, so the upstream gateway credentials stay on the host and
+all container spend is logged in one place.
 
 ## Requirements
 
@@ -64,14 +66,25 @@ that directory has none, so you can keep one shared file or give a
 project its own. `.env` is gitignored and is only ever pushed into a
 container's runtime config, never into a published image.
 
+Its `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` describe the
+**upstream gateway**, which the local proxy forwards to. They are not
+passed to containers — those authenticate to the proxy with
+`LITELLM_MASTER_KEY` instead, so start the proxy before launching an
+agent.
+
 ## LiteLLM proxy
 
-Separately from the agent containers, `pixi run litellm` starts a local
-LiteLLM proxy on `http://127.0.0.1:4000`. It forwards Anthropic traffic
-to the upstream gateway named in `.env`, serves your oMLX models
-alongside it, and records spend in a Postgres cluster it creates under
-`.litellm/`. See its [README](scripts/litellm/README.md) for
-configuration and for how to route the agent containers through it.
+`pixi run litellm` starts a local LiteLLM proxy on
+`http://127.0.0.1:4000`. It forwards Anthropic traffic to the upstream
+gateway named in `.env`, serves your oMLX models alongside it, and
+records spend in a Postgres cluster it creates under `.litellm/`.
+
+The agent containers depend on it: they are pointed at the proxy rather
+than the gateway, so it has to be running before `pixi run claude`.
+Because a container cannot reach the host on loopback, the launcher
+works out the host's address on Colima's vmnet bridge and hands the
+container that. See its [README](scripts/litellm/README.md) for the
+details.
 
 ## License
 

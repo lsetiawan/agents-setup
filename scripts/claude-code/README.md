@@ -2,19 +2,25 @@
 
 Builds a minimal Alpine incus image with Claude Code preinstalled, and
 launches per-project containers from it with your project directory
-mounted in and API credentials injected at startup.
+mounted in. Containers reach models through the local LiteLLM proxy
+rather than the upstream gateway, so the gateway credentials stay on the
+host.
 
 ## Prerequisites
 
 - [incus](https://linuxcontainers.org/incus/) installed and initialized
   (`incus admin init`)
+- The [LiteLLM proxy](../litellm/README.md) running (`pixi run litellm`).
+  Containers talk to it, not to the upstream gateway, so the launcher
+  refuses to start without it.
 - A `.env` file with your credentials (copy `.env-example` and fill it
   in). The launcher reads it from the directory you invoke it in, and
   falls back to the repo root if that directory has none:
 
   ```
-  ANTHROPIC_BASE_URL=...
-  ANTHROPIC_AUTH_TOKEN=...
+  ANTHROPIC_BASE_URL=...    # the upstream gateway, used by the proxy
+  ANTHROPIC_AUTH_TOKEN=...  # its key — never enters a container
+  LITELLM_MASTER_KEY=...    # what the container authenticates with
   ```
 
 ## Build the base image
@@ -85,9 +91,41 @@ On first run for a given directory, this creates a container
 from `claude-base-image` (4 CPUs / 16GB RAM by default) and mounts
 `project_directory` as a disk device at `/workspace`. Every run
 (including reuses) re-reads `.env` and pushes each key into the
-container's environment via `incus config set`, so credential changes
-take effect without recreating the container. It then execs into the
-container and starts `claude` in `/workspace`.
+container's environment via `incus config set`, so changes take effect
+without recreating the container. It then execs into the container and
+starts `claude` in `/workspace`.
+
+## Model routing
+
+The container never sees the upstream gateway. The launcher sets its
+`ANTHROPIC_BASE_URL` to the local LiteLLM proxy and its
+`ANTHROPIC_AUTH_TOKEN` to `LITELLM_MASTER_KEY`, so the real gateway key
+stays on the host and all container spend lands in the proxy's logs.
+
+Because of that, the `.env` push skips the keys that are the proxy's
+business rather than the container's: `ANTHROPIC_BASE_URL`,
+`ANTHROPIC_AUTH_TOKEN`, `LITELLM_*`, `DATABASE_URL` and `OMLX_*`.
+Everything else in `.env` still goes through.
+
+Containers cannot reach the host on loopback — they sit behind
+`incusbr0` inside the Colima VM and NAT out of it. The launcher works
+out the host's address on the vmnet bridge (`192.168.64.1` on a default
+Colima setup) from `colima status`, confirms it against a real host
+interface, and hands the container that. Set `AGENTS_HOST_IP` to
+override it and `LITELLM_PORT` if the proxy is not on 4000.
+
+Before launching, the script checks the proxy answers on the host, and
+after starting the container it checks again from inside it — retrying
+for up to 30 seconds, since a fresh container needs a moment for its
+DHCP lease. Both failures print what to fix rather than letting Claude
+Code start and fail on its first request.
+
+Model names are pushed in as `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL`,
+defaulting to the names the proxy advertises (`claude-opus-5`,
+`claude-sonnet-5`, `claude-haiku-4-5`); `ANTHROPIC_MODEL` defaults to
+`sonnet`. Override any of them in `.env`. They are deliberately not in
+the image's `settings.json`: a settings `env` block takes precedence
+over the pushed environment, so names baked there would silently win.
 
 ## Tear down containers
 
@@ -124,3 +162,6 @@ left alone; delete those individually with `incus delete <name>`.
 - `.env` is only ever pushed into container config (`incus config`),
   never baked into the published image — the image build step doesn't
   touch it.
+- `claude-settings.json` holds only harness settings, no model names or
+  credentials, so the image stays independent of whatever gateway or
+  proxy you point it at.
